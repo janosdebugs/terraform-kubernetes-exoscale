@@ -76,3 +76,12 @@ resource "exoscale_security_group_rule" "ingress-udp" {
   cidr = "0.0.0.0/0"
   count = length(var.ingress_allowed_udp_ports)
 }
+
+resource "exoscale_security_group_rule" "healthcheck" {
+  type = "INGRESS"
+  security_group_id = exoscale_security_group.k8s.id
+  protocol = "TCP"
+  start_port = var.ingress_healthcheck_port
+  end_port = var.ingress_healthcheck_port
+  cidr = "0.0.0.0/0"
+}

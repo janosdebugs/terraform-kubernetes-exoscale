@@ -42,6 +42,12 @@ variable "k8s_port" {
   type = number
 }
 
+variable "ingress_healthcheck_port" {
+  description = "Kubernetes healthcheck port."
+  default = 6080
+  type = number
+}
+
 variable "ingress_allowed_tcp_ports" {
   description = "TCP ports allowed for ingress"
   type = list(number)

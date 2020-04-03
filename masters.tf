@@ -8,8 +8,7 @@ module "masters" {
   prefix = var.prefix
   security_group_id = exoscale_security_group.k8s.id
   k8s_port = var.k8s_port
-  # Todo build a dedicated health check port for this?
-  ingress_healthcheck_port = var.k8s_port
+  ingress_healthcheck_port = var.ingress_healthcheck_port
   ca_algo = tls_private_key.ca.algorithm
   ca_cert = tls_self_signed_cert.ca.cert_pem
   ca_key = tls_private_key.ca.private_key_pem

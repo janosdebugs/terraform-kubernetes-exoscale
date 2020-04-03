@@ -32,7 +32,8 @@ variable "security_group_id" {
 }
 
 variable "ingress_healthcheck_port" {
-  description = "TCP port for ingress healthchecks"
+  description = "Kubernetes healthcheck port."
+  type = number
 }
 
 variable "ca_key" {

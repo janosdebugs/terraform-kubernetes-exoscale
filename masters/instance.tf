@@ -23,7 +23,7 @@ resource "exoscale_compute" "masters" {
   security_group_ids = [var.security_group_id]
   count = 3
 
-  user_data = templatefile("${path.module}/user-data.sh", {
+  user_data = templatefile("${path.module}/files/user-data.sh", {
     ssh_port = var.ssh_port
     users = var.server_admin_users
     privnet_ip = "10.0.0.${count.index + 1}/24"
@@ -37,68 +37,28 @@ resource "exoscale_compute" "masters" {
     user = "ubuntu"
   }
 
-  /*
-  Wait for instance to come up
-  */
+  /**
+   * Make sure the network is attached BEFORE etcd comes up.
+   */
   provisioner "remote-exec" {
     inline = [
-      "#!/bin/bash",
-      "set -e"
+      templatefile("${path.module}/files/attach-network.sh", {
+        exocli_version = "1.11.0"
+        exoscale_key = var.exoscale_key
+        exoscale_secret = var.exoscale_secret
+        exoscale_zone = var.exoscale_zone
+        network_id = exoscale_network.masters.id
+        instance_id = self.id
+      })
     ]
   }
-}
 
-locals {
-  kube_controller_manager_config = templatefile("${path.module}/kube-controller-manager.kubeconfig", {
-    ca_cert = replace(base64encode(var.ca_cert), "\n", "")
-    cert = replace(base64encode(tls_locally_signed_cert.controller-manager.cert_pem), "\n", "")
-    key = replace(base64encode(tls_private_key.controller-manager.private_key_pem), "\n", "")
-    prefix = var.prefix
-  })
-}
-locals {
-  kube_scheduler_config = templatefile("${path.module}/kube-scheduler.kubeconfig", {
-    ca_cert = replace(base64encode(var.ca_cert), "\n", "")
-    cert = replace(base64encode(tls_locally_signed_cert.scheduler.cert_pem), "\n", "")
-    key = replace(base64encode(tls_private_key.scheduler.private_key_pem), "\n", "")
-    prefix = var.prefix
-  })
-}
-
-locals {
-  encryption_config = templatefile("${path.module}/encryption-config.yaml", {
-    ENCRYPTION_KEY =  base64encode(random_string.encryption-key.result)
-  })
-}
-
-resource "exoscale_nic" "masters" {
-  compute_id = element(exoscale_compute.masters.*.id, count.index)
-  network_id = exoscale_network.masters.id
-  count = 3
-}
-
-resource "null_resource" "masters" {
-  count = 3
-  depends_on = [
-    exoscale_compute.masters,
-    exoscale_nic.masters
-  ]
-
-  /*
-  The following section is implemented here because exoscale_compute does not allow for deploying with networks
-  attached.
-  */
-  connection {
-    host = element(exoscale_compute.masters.*.ip_address, count.index)
-    agent = false
-    port = var.ssh_port
-    private_key = tls_private_key.initial.private_key_pem
-    user = "ubuntu"
-  }
-
+  /**
+   * Make sure etcd is running
+   */
   provisioner "remote-exec" {
     inline = [
-      templatefile("${path.module}/install-etcd.sh", {
+      templatefile("${path.module}/files/install-etcd.sh", {
         etcd_version = "3.4.0"
         privnet_cidr = "10.0.0.${count.index + 1}/24"
         privnet_ip = "10.0.0.${count.index + 1}"
@@ -110,9 +70,12 @@ resource "null_resource" "masters" {
     ]
   }
 
+  /**
+   * Deploy the Kubernetes backplane
+   */
   provisioner "remote-exec" {
     inline = [
-      templatefile("${path.module}/install-backplane.sh", {
+      templatefile("${path.module}/files/install-backplane.sh", {
         etcd_version = "3.4.0"
         privnet_cidr = "10.0.0.${count.index + 1}/24"
         privnet_ip = "10.0.0.${count.index + 1}"
@@ -128,10 +91,15 @@ resource "null_resource" "masters" {
         kube_scheduler_config = local.kube_scheduler_config
         encryption_config = local.encryption_config
         prefix = var.prefix
+        k8s_port = var.k8s_port
+        healthcheck_port = var.ingress_healthcheck_port
       })
     ]
   }
 
+  /**
+   * Delete the ubuntu user used for provisioning
+   */
   provisioner "remote-exec" {
     inline = [
       "#!/bin/bash",
@@ -139,26 +107,4 @@ resource "null_resource" "masters" {
       "sudo userdel -f -r ubuntu"
     ]
   }
-}
-
-resource "exoscale_secondary_ipaddress" "ingress" {
-  compute_id = exoscale_compute.masters.*.id[count.index]
-  ip_address = exoscale_ipaddress.ingress.ip_address
-  count = 3
-}
-
-resource "exoscale_domain_record" "internal" {
-  content = "10.0.0.${count.index}"
-  domain = var.service_domain_zone
-  name = "master-${count.index}.master.${var.service_domain}"
-  record_type = "A"
-  count = 3
-}
-
-resource "exoscale_domain_record" "public" {
-  content = element(exoscale_compute.masters.*.ip_address, count.index)
-  domain = var.service_domain_zone
-  name = "master-${count.index}.${var.service_domain}"
-  record_type = "A"
-  count = 3
 }

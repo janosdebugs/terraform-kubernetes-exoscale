@@ -175,4 +175,14 @@ sudo rm /etc/nginx/sites-enabled/default
 sudo systemctl restart nginx
 sudo systemctl enable nginx
 
-curl -H "Host: kubernetes.default.svc.cluster.local" -i http://127.0.0.1:${healthcheck_port}/healthz
+for i in $(seq 1 30); do
+  set +e
+  curl -H "Host: kubernetes.default.svc.cluster.local" -i http://127.0.0.1:${healthcheck_port}/healthz
+  if [ $? -eq 0 ]; then
+    exit 0
+  fi
+  set -e
+  sleep 1
+done
+echo "Kubernetes backplane failed to come up within 30 seconds!" >&2
+exit 1

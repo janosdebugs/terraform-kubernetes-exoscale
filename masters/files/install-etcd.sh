@@ -41,23 +41,6 @@ if [ -f /etc/systemd/system/etcd.service ]; then
 fi
 # endregion
 
-# region try querying other cluster members and remove nodes
-INITIAL_CLUSTER_STATE=new
-echo "10.0.0.1" >endpoints
-echo "10.0.0.2" >>endpoints
-echo "10.0.0.3" >>endpoints
-for endpoint in $(cat endpoints | grep -v $${INTERNAL_IP}); do
-  set +e
-  EXISTING_MEMBER_ID=$(etcdctl member list --endpoints=https://$${endpoint}:2379 --cacert=/etc/etcd/ca.pem --cert=/etc/etcd/kubernetes.pem --key=/etc/etcd/kubernetes-key.pem | grep $${ETCD_NAME} | awk ' { print $1 } ' | sed -e 's/,//')
-  if [ $? -eq 0 -a "$${INITIAL_CLUSTER_STATE}" = "new" -a -n $${EXISTING_MEMBER_ID} ]; then
-    etcdctl member remove $${EXISTING_MEMBER_ID} --endpoints=https://$${endpoint}:2379 --cacert=/etc/etcd/ca.pem --cert=/etc/etcd/kubernetes.pem --key=/etc/etcd/kubernetes-key.pem
-    etcdctl member add $${ETCD_NAME} --peer-urls=https://$${INTERNAL_IP}:2380 --endpoints=https://$${endpoint}:2379 --cacert=/etc/etcd/ca.pem --cert=/etc/etcd/kubernetes.pem --key=/etc/etcd/kubernetes-key.pem
-    INITIAL_CLUSTER_STATE=existing
-  fi
-  set -e
-done
-# endregion
-
 # region init file
 cat <<EOF | sudo tee /etc/systemd/system/etcd.service
 [Unit]
@@ -82,7 +65,7 @@ ExecStart=/usr/local/bin/etcd \\
   --advertise-client-urls https://$${INTERNAL_IP}:2379 \\
   --initial-cluster-token etcd-cluster-0 \\
   --initial-cluster ${etcd_initial_cluster} \\
-  --initial-cluster-state $${INITIAL_CLUSTER_STATE} \\
+  --initial-cluster-state new \\
   --data-dir=/var/lib/etcd
 Restart=on-failure
 RestartSec=5
@@ -97,13 +80,20 @@ sudo systemctl start etcd
 # endregion
 
 # region wait for etcd to come up
-set +e
-systemctl is-active --quiet etcd
-if [ $? -ne 0 ]; then
-  echo "The etcd service is not active" >&2
-  exit 1
+UP=0
+for i in $(seq 1 30); do
+  set +e
+  systemctl is-active --quiet etcd
+  if [ $? -eq 0 ]; then
+    UP=1
+    break
+  fi
+  set -e
+done
+
+if [ $UP -eq 0 ]; then
+  echo "The etcd service is not active"
 fi
-set -e
 
 for i in $(seq 1 30); do
   set +e

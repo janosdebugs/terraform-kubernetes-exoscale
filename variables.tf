@@ -83,5 +83,5 @@ variable "output_config" {
 
 variable "output_config_directory" {
   description = "Configuration directory to save resources to"
-  default = ""
+  default = "config"
 }

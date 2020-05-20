@@ -2,6 +2,7 @@
 *.tfstate
 terraform.tfvars
 terraform.tfstate.backup
+terraform.tfstate.*.backup
 .idea
 *.iml
 config

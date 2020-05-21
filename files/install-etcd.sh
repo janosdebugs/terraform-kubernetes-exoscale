@@ -18,15 +18,15 @@ sudo mkdir -p /etc/etcd /var/lib/etcd
 # endregion
 
 # region Certificates
-cat <<EOF | sudo tee /etc/etcd/ca.pem
+cat <<EOF | sudo tee /etc/etcd/ca.pem >/dev/null
 ${ca_cert}
 EOF
 
-cat <<EOF | sudo tee /etc/etcd/kubernetes.pem
+cat <<EOF | sudo tee /etc/etcd/kubernetes.pem >/dev/null
 ${kubernetes_cert}
 EOF
 
-cat <<EOF | sudo tee /etc/etcd/kubernetes-key.pem
+cat <<EOF | sudo tee /etc/etcd/kubernetes-key.pem >/dev/null
 ${kubernetes_key}
 EOF
 # endregion
@@ -42,7 +42,7 @@ fi
 # endregion
 
 # region init file
-cat <<EOF | sudo tee /etc/systemd/system/etcd.service
+cat <<EOF | sudo tee /etc/systemd/system/etcd.service >/dev/null
 [Unit]
 Description=etcd
 Documentation=https://github.com/coreos

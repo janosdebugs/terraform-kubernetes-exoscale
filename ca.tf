@@ -24,13 +24,11 @@ resource "tls_self_signed_cert" "ca" {
 }
 
 resource "local_file" "ca-key" {
-  filename = "${var.output_config_directory}/ca.pem"
+  filename = "${path.module}/config/ca.pem"
   content = tls_private_key.admin.private_key_pem
-  count = var.output_config == true?1:0
 }
 
 resource "local_file" "ca-cert" {
-  filename = "${var.output_config_directory}/ca.crt"
+  filename = "${path.module}/config/ca.crt"
   content = tls_self_signed_cert.ca.cert_pem
-  count = var.output_config == true?1:0
 }

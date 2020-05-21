@@ -75,13 +75,3 @@ variable "prefix" {
   description = "Resource prefix"
   default = "k8s"
 }
-
-variable "output_config" {
-  description = "Output configuration into a local directory"
-  default = false
-}
-
-variable "output_config_directory" {
-  description = "Configuration directory to save resources to"
-  default = "config"
-}

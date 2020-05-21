@@ -20,3 +20,9 @@ provider "aws" {
   skip_region_validation = true
   skip_requesting_account_id = true
 }
+
+provider "kubernetes" {
+  client_certificate = tls_locally_signed_cert.admin.cert_pem
+  client_key = tls_private_key.admin.private_key_pem
+  host = local.master_url
+}

@@ -5,46 +5,46 @@ set -e
 wget -q --show-progress --https-only --timestamping \
   "https://storage.googleapis.com/kubernetes-release/release/v${kubernetes_version}/bin/linux/amd64/kube-apiserver" \
   "https://storage.googleapis.com/kubernetes-release/release/v${kubernetes_version}/bin/linux/amd64/kube-controller-manager" \
-  "https://storage.googleapis.com/kubernetes-release/release/v1.15.3/bin/linux/amd64/kube-scheduler" \
-  "https://storage.googleapis.com/kubernetes-release/release/v1.15.3/bin/linux/amd64/kubectl"
+  "https://storage.googleapis.com/kubernetes-release/release/v${kubernetes_version}/bin/linux/amd64/kube-scheduler" \
+  "https://storage.googleapis.com/kubernetes-release/release/v${kubernetes_version}/bin/linux/amd64/kubectl"
 chmod +x kube-apiserver kube-controller-manager kube-scheduler kubectl
 sudo mv kube-apiserver kube-controller-manager kube-scheduler kubectl /usr/local/bin/
 
 sudo mkdir -p /var/lib/kubernetes/
 sudo mkdir -p /etc/kubernetes/config/
 
-cat <<EOF | sudo tee /var/lib/kubernetes/ca.pem
+cat <<EOF | sudo tee /var/lib/kubernetes/ca.pem >/dev/null
 ${ca_cert}
 EOF
 
-cat <<EOF | sudo tee /var/lib/kubernetes/ca-key.pem
+cat <<EOF | sudo tee /var/lib/kubernetes/ca-key.pem >/dev/null
 ${ca_key}
 EOF
 
-cat <<EOF | sudo tee /var/lib/kubernetes/kubernetes.pem
+cat <<EOF | sudo tee /var/lib/kubernetes/kubernetes.pem >/dev/null
 ${kubernetes_cert}
 EOF
 
-cat <<EOF | sudo tee /var/lib/kubernetes/kubernetes-key.pem
+cat <<EOF | sudo tee /var/lib/kubernetes/kubernetes-key.pem >/dev/null
 ${kubernetes_key}
 EOF
 
-cat <<EOF | sudo tee /var/lib/kubernetes/service-account.pem
+cat <<EOF | sudo tee /var/lib/kubernetes/service-account.pem >/dev/null
 ${service_account_cert}
 EOF
 
-cat <<EOF | sudo tee /var/lib/kubernetes/service-account-key.pem
+cat <<EOF | sudo tee /var/lib/kubernetes/service-account-key.pem >/dev/null
 ${service_account_key}
 EOF
 
-cat <<EOF | sudo tee /var/lib/kubernetes/encryption-config.yaml
+cat <<EOF | sudo tee /var/lib/kubernetes/encryption-config.yaml >/dev/null
 ${encryption_config}
 EOF
 
 ADVERTISE_ADDRESS="${eip_ip}"
 
 # region API Server
-cat <<EOF | sudo tee /etc/systemd/system/kube-apiserver.service
+cat <<EOF | sudo tee /etc/systemd/system/kube-apiserver.service >/dev/null
 [Unit]
 Description=Kubernetes API Server
 Documentation=https://github.com/kubernetes/kubernetes
@@ -88,11 +88,11 @@ EOF
 #endregion
 
 # region Controller-Manager
-cat <<EOF | sudo tee /var/lib/kubernetes/kube-controller-manager.kubeconfig
+cat <<EOF | sudo tee /var/lib/kubernetes/kube-controller-manager.kubeconfig >/dev/null
 ${kube_controller_manager_config}
 EOF
 
-cat <<EOF | sudo tee /etc/systemd/system/kube-controller-manager.service
+cat <<EOF | sudo tee /etc/systemd/system/kube-controller-manager.service >/dev/null
 [Unit]
 Description=Kubernetes Controller Manager
 Documentation=https://github.com/kubernetes/kubernetes
@@ -120,11 +120,11 @@ EOF
 # endregion
 
 # region Scheduler
-cat <<EOF | sudo tee /var/lib/kubernetes/kube-scheduler.kubeconfig
+cat <<EOF | sudo tee /var/lib/kubernetes/kube-scheduler.kubeconfig >/dev/null
 ${kube_scheduler_config}
 EOF
 
-cat <<EOF | sudo tee /etc/kubernetes/config/kube-scheduler.yaml
+cat <<EOF | sudo tee /etc/kubernetes/config/kube-scheduler.yaml >/dev/null
 apiVersion: kubescheduler.config.k8s.io/v1alpha1
 kind: KubeSchedulerConfiguration
 clientConnection:
@@ -133,7 +133,7 @@ leaderElection:
   leaderElect: true
 EOF
 
-cat <<EOF | sudo tee /etc/systemd/system/kube-scheduler.service
+cat <<EOF | sudo tee /etc/systemd/system/kube-scheduler.service >/dev/null
 [Unit]
 Description=Kubernetes Scheduler
 Documentation=https://github.com/kubernetes/kubernetes
@@ -154,7 +154,6 @@ sudo systemctl daemon-reload
 sudo systemctl enable kube-apiserver kube-controller-manager kube-scheduler
 sudo systemctl start kube-apiserver kube-controller-manager kube-scheduler
 
-# todo healthcheck
 sudo apt-get update
 sudo apt-get install -y nginx
 cat > kubernetes.default.svc.cluster.local <<EOF

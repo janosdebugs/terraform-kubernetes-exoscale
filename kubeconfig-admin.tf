@@ -24,8 +24,8 @@ resource "tls_locally_signed_cert" "admin" {
 }
 
 locals {
-  admin_config = templatefile("${path.module}/admin.kubeconfig", {
-    url = module.masters.admin_url
+  admin_config = templatefile("${path.module}/files/admin.kubeconfig", {
+    url = local.master_url
     ca_cert = replace(base64encode(tls_self_signed_cert.ca.cert_pem), "\n", "")
     admin_cert = replace(base64encode(tls_locally_signed_cert.admin.cert_pem), "\n", "")
     admin_key = replace(base64encode(tls_private_key.admin.private_key_pem), "\n", "")
@@ -34,19 +34,16 @@ locals {
 }
 
 resource "local_file" "admin-kubeconfig" {
-  filename = "${var.output_config_directory}/admin.kubeconfig"
+  filename = "${path.module}/config/admin.kubeconfig"
   content = local.admin_config
-  count = var.output_config == true?1:0
 }
 
 resource "local_file" "admin-crt" {
-  filename = "${var.output_config_directory}/admin.crt"
+  filename = "${path.module}/config/admin.crt"
   content = tls_locally_signed_cert.admin.cert_pem
-  count = var.output_config == true?1:0
 }
 
 resource "local_file" "admin-key" {
-  filename = "${var.output_config_directory}/admin.pem"
+  filename = "${path.module}/config/admin.pem"
   content = tls_private_key.admin.private_key_pem
-  count = var.output_config == true?1:0
 }

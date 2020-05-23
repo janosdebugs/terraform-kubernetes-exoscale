@@ -36,7 +36,7 @@ resource "tls_cert_request" "kubelet" {
   key_algorithm = element(tls_private_key.kubelet.*.algorithm, count.index)
   private_key_pem = element(tls_private_key.kubelet.*.private_key_pem, count.index)
   subject {
-    common_name = "system:node:worker-${count.index}"
+    common_name = "system:node:${var.prefix}-worker-${count.index}"
     organization = "system:nodes"
   }
   dns_names = [
@@ -81,6 +81,7 @@ resource "exoscale_secondary_ipaddress" "ingress" {
 
 // region Kubelet authorization
 resource "kubernetes_cluster_role" "apiserver-to-kubelet" {
+  depends_on = [exoscale_secondary_ipaddress.k8s]
   metadata {
     annotations = {
       "rbac.authorization.kubernetes.io/autoupdate": "true"
@@ -104,6 +105,7 @@ resource "kubernetes_cluster_role" "apiserver-to-kubelet" {
 }
 
 resource "kubernetes_cluster_role_binding" "apiserver-to-kubelet" {
+  depends_on = [exoscale_secondary_ipaddress.k8s]
   metadata {
     name = "system:kube-apiserver"
   }
@@ -129,7 +131,7 @@ data "template_file" "kubelet" {
     key = replace(base64encode(tls_private_key.kubelet[count.index].private_key_pem), "\n", "")
     prefix = var.prefix
     url = local.master_url
-    name = "worker-${count.index}"
+    name = replace(tls_cert_request.kubelet[count.index].subject[0].common_name, "system:node:", "")
   }
   count = var.workers
 }
@@ -149,7 +151,11 @@ resource "exoscale_affinity" "workers" {
 }
 
 resource "exoscale_compute" "worker" {
-  display_name = "${var.prefix}-worker-${count.index}"
+  depends_on = [
+    kubernetes_cluster_role_binding.apiserver-to-kubelet
+  ]
+
+  display_name = replace(tls_cert_request.kubelet[count.index].subject[0].common_name, "system:node:", "")
   disk_size = 100
   size = "Small"
   key_pair = exoscale_ssh_keypair.initial.name
@@ -189,7 +195,7 @@ resource "exoscale_compute" "worker" {
         kubeproxy_kubeconfig = data.template_file.kubeproxy.rendered
         key = tls_private_key.kubelet[count.index].private_key_pem
         cert = tls_locally_signed_cert.kubelet[count.index].cert_pem
-        name = "worker-${count.index}"
+        name = replace(tls_cert_request.kubelet[count.index].subject[0].common_name, "system:node:", "")
       })
     ]
   }
@@ -204,9 +210,13 @@ resource "exoscale_compute" "worker" {
       "sudo userdel -f -r ubuntu"
     ]
   }
-
-  depends_on = [
-    kubernetes_cluster_role_binding.apiserver-to-kubelet
-  ]
 }
+resource "exoscale_domain_record" "worker" {
+  content = exoscale_compute.worker[count.index].ip_address
+  domain = var.service_domain_zone
+  name = tls_cert_request.kubelet[count.index].dns_names[0]
+  record_type = "A"
+  count = var.workers
+}
+
 // endregion

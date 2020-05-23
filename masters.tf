@@ -25,11 +25,6 @@ resource "exoscale_secondary_ipaddress" "k8s" {
   compute_id = exoscale_compute.masters.*.id[count.index]
   ip_address = exoscale_ipaddress.k8s.ip_address
   count = 3
-
-  provisioner "local-exec" {
-    working_dir = "${path.module}/bin/${var.terraform_os}"
-    command = "${local.wait_for_http} http://${self.ip_address}:${var.k8s_healthcheck_port}/healthz"
-  }
 }
 // endregion
 
@@ -217,6 +212,9 @@ resource "exoscale_affinity" "masters" {
 
 
 resource "exoscale_compute" "masters" {
+  // Wait for SG rule to come up before creating compute resource and also destroy compute before destroying the
+  // firewall rule.
+  depends_on = [exoscale_security_group_rule.k8s]
   # If you change this, also change initial_cluster_configuration for etcd below
   display_name = "${var.prefix}-master-${count.index}"
   disk_size = 100
@@ -315,6 +313,22 @@ resource "exoscale_compute" "masters" {
 }
 // endregion
 
+resource "null_resource" "k8s-api" {
+  triggers = {
+    ip = exoscale_ipaddress.k8s.ip_address
+  }
+  provisioner "local-exec" {
+    working_dir = "${path.module}/bin/${var.terraform_os}"
+    command = "${local.wait_for_http} https://${null_resource.k8s-api.triggers["ip"]}:${var.k8s_port}/healthz"
+  }
+}
+
+data "null_data_source" "k8s-api" {
+  inputs = {
+    master_url = "https://${null_resource.k8s-api.triggers["ip"]}:${var.k8s_port}"
+  }
+}
+
 locals {
-  master_url = "https://${exoscale_secondary_ipaddress.k8s[0].ip_address}:${var.k8s_port}"
+  master_url = data.null_data_source.k8s-api.outputs["master_url"]
 }

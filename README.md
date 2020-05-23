@@ -30,7 +30,7 @@ service_domain_zone = "your-domain.com"
 server_admin_users = {
   "your-user": "ssh-rsa ..."
 }
-workers = 1
+workers = 2
 ```
 
 You can then run `terraform init` and `terraform apply` and you will hopefully get a running Kubernetes cluster and
@@ -66,10 +66,10 @@ Once the workers are running several things are deployed into Kubernetes itself.
 transformed to Terraform code so they can be properly managed. These components are:
 
 - CoreDNS
-- Cannel (planned)
-- MetalLB (planned)
+- Cannel
+- MetalLB
 - nginx ingress controller (planned)
-- helm
+- helm (planned)
 
 ## Security notes
 

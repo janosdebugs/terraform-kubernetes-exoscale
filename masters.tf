@@ -13,7 +13,7 @@ resource "exoscale_ipaddress" "k8s" {
 resource "exoscale_domain_record" "kubernetes" {
   content = exoscale_ipaddress.k8s.ip_address
   domain = var.service_domain_zone
-  name = "kubernetes.${var.service_domain}"
+  name = "kubernetes${local.service_domain_suffix}"
   record_type = "A"
 }
 
@@ -94,6 +94,7 @@ resource "tls_cert_request" "kubernetes" {
     organization = "Kubernetes"
   }
   ip_addresses = [
+    "10.32.0.1",
     "10.0.0.1",
     "10.0.0.2",
     "10.0.0.3",
@@ -101,9 +102,9 @@ resource "tls_cert_request" "kubernetes" {
     exoscale_ipaddress.k8s.ip_address
   ]
   dns_names = [
-    "master-0.master.${var.service_domain}",
-    "master-1.master.${var.service_domain}",
-    "master-2.master.${var.service_domain}",
+    "master-0.masters.${var.service_domain}",
+    "master-1.masters.${var.service_domain}",
+    "master-2.masters.${var.service_domain}",
     "kubernetes.${var.service_domain}",
     "kubernetes.default",
     "kubernetes.default.svc",
@@ -161,16 +162,18 @@ resource "random_string" "encryption-key" {
 resource "exoscale_domain_record" "internal" {
   content = "10.0.0.${count.index}"
   domain = var.service_domain_zone
-  name = "master-${count.index}.master.${var.service_domain}"
+  name = "${var.prefix}-master-${count.index}.masters${local.service_domain_suffix}"
   record_type = "A"
+  ttl = 60
   count = 3
 }
 
 resource "exoscale_domain_record" "public" {
   content = element(exoscale_compute.masters.*.ip_address, count.index)
   domain = var.service_domain_zone
-  name = "master-${count.index}.${var.service_domain}"
+  name = "${var.prefix}-master-${count.index}${local.service_domain_suffix}"
   record_type = "A"
+  ttl = 60
   count = 3
 }
 // endregion
@@ -180,6 +183,7 @@ resource "exoscale_network" "masters" {
   name = "${var.prefix}-masters"
   zone = var.exoscale_zone
 }
+
 // endregion
 
 // region Instances
@@ -230,6 +234,8 @@ resource "exoscale_compute" "masters" {
     ssh_port = var.ssh_port
     users = var.server_admin_users
     privnet_ip = "10.0.0.${count.index + 1}/24"
+    name = "${var.prefix}-master-${count.index}"
+    domain = var.service_domain
   })
 
   connection {

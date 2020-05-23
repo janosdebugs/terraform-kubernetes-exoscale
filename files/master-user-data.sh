@@ -28,7 +28,20 @@ sed -i -e 's/#Port 22/Port ${ssh_port}/' /etc/ssh/sshd_config
 # endregion
 
 # region Network
-cat <<EOF >/etc/netplan/51-privnet.yaml
+IP=$(ifconfig eth0 | grep inet | grep -v inet6 | awk ' { print $2 } ')
+cat <<EOF >/etc/hosts
+$${IP} ${name}.${domain} ${name}
+127.0.0.1 localhost
+
+# The following lines are desirable for IPv6 capable hosts
+::1 ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+ff02::3 ip6-allhosts
+EOF
+cat <<EOF >/etc/netplan/51-masternet.yaml
 network:
   version: 2
   renderer: networkd
@@ -36,6 +49,17 @@ network:
     eth1:
       addresses:
         - ${privnet_ip}
+EOF
+cat <<EOF >/etc/systemd/resolved.conf
+[Resolve]
+#DNS=
+#FallbackDNS=
+Domains=${domain}
+#LLMNR=no
+#MulticastDNS=no
+#DNSSEC=no
+#Cache=yes
+#DNSStubListener=yes
 EOF
 # endregion
 

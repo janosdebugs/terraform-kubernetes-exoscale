@@ -80,7 +80,7 @@ cat <<EOF | sudo tee /var/lib/kubelet/kubeconfig >/dev/null
 ${kubelet_kubeconfig}
 EOF
 
-cat <<EOF | sudo tee /var/lib/kubelet/kubelet-config.yaml
+cat <<EOF | sudo tee /var/lib/kubelet/kubelet-config.yaml >/dev/null
 kind: KubeletConfiguration
 apiVersion: kubelet.config.k8s.io/v1beta1
 authentication:
@@ -96,6 +96,7 @@ clusterDomain: "cluster.local"
 clusterDNS:
   - "10.32.0.10"
 resolvConf: "/run/systemd/resolve/resolv.conf"
+podCIDR: "10.244.0.0/16"
 runtimeRequestTimeout: "15m"
 tlsCertFile: "/var/lib/kubelet/${name}.pem"
 tlsPrivateKeyFile: "/var/lib/kubelet/${name}-key.pem"
@@ -115,7 +116,6 @@ ExecStart=/usr/local/bin/kubelet \\
   --container-runtime-endpoint=unix:///var/run/containerd/containerd.sock \\
   --image-pull-progress-deadline=2m \\
   --kubeconfig=/var/lib/kubelet/kubeconfig \\
-  --network-plugin=cni \\
   --register-node=true \\
   --v=2
 Restart=on-failure
@@ -126,7 +126,7 @@ WantedBy=multi-user.target
 EOF
 # endregion
 
-# region Kubelet
+# region kube-proxy
 cat <<EOF | sudo tee /var/lib/kube-proxy/kubeconfig
 ${kubeproxy_kubeconfig}
 EOF
@@ -136,8 +136,10 @@ kind: KubeProxyConfiguration
 apiVersion: kubeproxy.config.k8s.io/v1alpha1
 clientConnection:
   kubeconfig: "/var/lib/kube-proxy/kubeconfig"
-mode: "iptables"
-clusterCIDR: "10.200.0.0/16"
+mode: "ipvs"
+ipvs:
+  strictARP: true
+clusterCIDR: "10.244.0.0/16"
 EOF
 
 cat <<EOF | sudo tee /etc/systemd/system/kube-proxy.service
@@ -154,6 +156,10 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
+# endregion
+
+# region Resolv conf
+sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
 # endregion
 
 # region Services

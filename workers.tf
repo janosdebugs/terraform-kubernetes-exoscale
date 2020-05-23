@@ -40,7 +40,8 @@ resource "tls_cert_request" "kubelet" {
     organization = "system:nodes"
   }
   dns_names = [
-    "worker-${count.index}.${var.service_domain}"
+    "${var.prefix}-worker-${count.index}.${var.service_domain}",
+    "${var.prefix}-worker-${count.index}"
   ]
   count = var.workers
 }
@@ -68,7 +69,8 @@ resource "exoscale_ipaddress" "ingress" {
 resource "exoscale_domain_record" "ingress" {
   content = exoscale_ipaddress.ingress.ip_address
   domain = var.service_domain_zone
-  name = var.service_domain
+  name = local.service_domain_stub
+  ttl = 60
   record_type = "A"
 }
 
@@ -131,7 +133,7 @@ data "template_file" "kubelet" {
     key = replace(base64encode(tls_private_key.kubelet[count.index].private_key_pem), "\n", "")
     prefix = var.prefix
     url = local.master_url
-    name = replace(tls_cert_request.kubelet[count.index].subject[0].common_name, "system:node:", "")
+    name = "${var.prefix}-worker-${count.index}"
   }
   count = var.workers
 }
@@ -155,7 +157,7 @@ resource "exoscale_compute" "worker" {
     kubernetes_cluster_role_binding.apiserver-to-kubelet
   ]
 
-  display_name = replace(tls_cert_request.kubelet[count.index].subject[0].common_name, "system:node:", "")
+  display_name = "${var.prefix}-worker-${count.index}"
   disk_size = 100
   size = "Small"
   key_pair = exoscale_ssh_keypair.initial.name
@@ -168,6 +170,9 @@ resource "exoscale_compute" "worker" {
   user_data = templatefile("${path.module}/files/worker-user-data.sh", {
     ssh_port = var.ssh_port
     users = var.server_admin_users
+    name = "${var.prefix}-worker-${count.index}"
+    domain = var.service_domain
+    workernet_ip = "10.1.1.${count.index + 1}/16"
   })
 
   connection {
@@ -195,7 +200,8 @@ resource "exoscale_compute" "worker" {
         kubeproxy_kubeconfig = data.template_file.kubeproxy.rendered
         key = tls_private_key.kubelet[count.index].private_key_pem
         cert = tls_locally_signed_cert.kubelet[count.index].cert_pem
-        name = replace(tls_cert_request.kubelet[count.index].subject[0].common_name, "system:node:", "")
+        name = "${var.prefix}-worker-${count.index}"
+        domain = var.service_domain
       })
     ]
   }
@@ -214,9 +220,9 @@ resource "exoscale_compute" "worker" {
 resource "exoscale_domain_record" "worker" {
   content = exoscale_compute.worker[count.index].ip_address
   domain = var.service_domain_zone
-  name = tls_cert_request.kubelet[count.index].dns_names[0]
+  name = "${var.prefix}-worker-${count.index}${local.service_domain_suffix}"
   record_type = "A"
+  ttl = 60
   count = var.workers
 }
-
 // endregion

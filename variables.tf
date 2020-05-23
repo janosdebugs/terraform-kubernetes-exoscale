@@ -80,3 +80,8 @@ variable "terraform_os" {
   description = "The OS Terraform is running on (windows, linux or darwin)"
   default = "windows"
 }
+
+locals {
+  service_domain_stub = var.service_domain == var.service_domain_zone?"@":"${replace(var.service_domain, ".${var.service_domain_zone}", "")}"
+  service_domain_suffix = var.service_domain == var.service_domain_zone?"":".${replace(var.service_domain, ".${var.service_domain_zone}", "")}"
+}

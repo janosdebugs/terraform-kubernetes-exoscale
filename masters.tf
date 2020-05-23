@@ -2,7 +2,7 @@
 resource "exoscale_ipaddress" "k8s" {
   zone = var.exoscale_zone
   healthcheck_mode = "http"
-  healthcheck_port = var.ingress_healthcheck_port
+  healthcheck_port = var.k8s_healthcheck_port
   healthcheck_path = "/healthz"
   healthcheck_interval = 10
   healthcheck_timeout = 5
@@ -17,10 +17,19 @@ resource "exoscale_domain_record" "kubernetes" {
   record_type = "A"
 }
 
+locals {
+  wait_for_http = var.terraform_os == "windows"?"wait-for-http":"./wait-for-http"
+}
+
 resource "exoscale_secondary_ipaddress" "k8s" {
   compute_id = exoscale_compute.masters.*.id[count.index]
   ip_address = exoscale_ipaddress.k8s.ip_address
   count = 3
+
+  provisioner "local-exec" {
+    working_dir = "${path.module}/bin/${var.terraform_os}"
+    command = "${local.wait_for_http} http://${self.ip_address}:${var.k8s_healthcheck_port}/healthz"
+  }
 }
 // endregion
 
@@ -288,7 +297,7 @@ resource "exoscale_compute" "masters" {
         encryption_config = local.encryption_config
         prefix = var.prefix
         k8s_port = var.k8s_port
-        healthcheck_port = var.ingress_healthcheck_port
+        healthcheck_port = var.k8s_healthcheck_port
       })
     ]
   }

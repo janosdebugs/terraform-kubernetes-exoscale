@@ -81,7 +81,7 @@ resource "exoscale_security_group_rule" "healthcheck" {
   type = "INGRESS"
   security_group_id = exoscale_security_group.k8s.id
   protocol = "TCP"
-  start_port = var.ingress_healthcheck_port
-  end_port = var.ingress_healthcheck_port
+  start_port = var.k8s_healthcheck_port
+  end_port = var.k8s_healthcheck_port
   cidr = "0.0.0.0/0"
 }

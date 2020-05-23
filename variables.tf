@@ -42,7 +42,7 @@ variable "k8s_port" {
   type = number
 }
 
-variable "ingress_healthcheck_port" {
+variable "k8s_healthcheck_port" {
   description = "Kubernetes healthcheck port."
   default = 6080
   type = number
@@ -74,4 +74,9 @@ variable "workers" {
 variable "prefix" {
   description = "Resource prefix"
   default = "k8s"
+}
+
+variable "terraform_os" {
+  description = "The OS Terraform is running on (windows, linux or darwin)"
+  default = "windows"
 }

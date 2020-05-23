@@ -1,10 +1,14 @@
 resource "kubernetes_service_account" "coredns" {
+  //Wait for API to be up
+  depends_on = [exoscale_secondary_ipaddress.k8s]
   metadata {
     name = "coredns"
     namespace = "kube-system"
   }
 }
 resource "kubernetes_cluster_role" "coredns" {
+  //Wait for API to be up
+  depends_on = [exoscale_secondary_ipaddress.k8s]
   metadata {
     labels = {
       "kubernetes.io/bootstrapping" = "rbac-defaults"
@@ -39,6 +43,8 @@ resource "kubernetes_cluster_role" "coredns" {
   }
 }
 resource "kubernetes_cluster_role_binding" "coredns" {
+  //Wait for API to be up
+  depends_on = [exoscale_secondary_ipaddress.k8s]
   metadata {
     annotations = {
       "rbac.authorization.kubernetes.io/autoupdate" = "true"
@@ -60,6 +66,8 @@ resource "kubernetes_cluster_role_binding" "coredns" {
   }
 }
 resource "kubernetes_config_map" "coredns" {
+  //Wait for API to be up
+  depends_on = [exoscale_secondary_ipaddress.k8s]
   metadata {
     name = "coredns"
     namespace = "kube-system"
@@ -85,6 +93,8 @@ EOF
 }
 
 resource "kubernetes_deployment" "coredns" {
+  //Wait for API and worker to be up
+  depends_on = [exoscale_secondary_ipaddress.k8s, exoscale_compute.worker]
   metadata {
     name = "coredns"
     namespace = "kube-system"

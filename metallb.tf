@@ -5,12 +5,14 @@ resource "random_string" "metallb" {
 }
 
 resource "kubernetes_namespace" "metallb" {
+  depends_on = [data.null_data_source.k8s-api]
   metadata {
     name = "metallb-system"
   }
 }
 
 resource "kubernetes_secret" "metallb" {
+  depends_on = [data.null_data_source.k8s-api]
   metadata {
     namespace = kubernetes_namespace.metallb.metadata[0].name
     name = "memberlist"

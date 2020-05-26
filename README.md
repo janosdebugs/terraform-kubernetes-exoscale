@@ -65,11 +65,11 @@ an instance pool. They get the kubelet and kube-proxy installed and configured v
 Once the workers are running several things are deployed into Kubernetes itself. The installation scripts have been
 transformed to Terraform code so they can be properly managed. These components are:
 
-- CoreDNS
-- Cannel
-- MetalLB
-- nginx ingress controller (planned)
-- helm (planned)
+- [CoreDNS](https://coredns.io/)
+- [Canal](https://docs.projectcalico.org/getting-started/kubernetes/flannel/flannel)
+- [MetalLB](https://metallb.universe.tf/) (planned)
+- [nginx ingress controller](https://github.com/kubernetes/ingress-nginx) (planned)
+- [helm](https://helm.sh/) (planned)
 
 ## Security notes
 

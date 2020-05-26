@@ -8,9 +8,6 @@ with Terraform.
 
 ## Usage
 
-You will **have** to install the [wait plugin](https://github.com/janoszen/terraform-provider-wait) so that Terraform
-can wait for the Kubernetes API to become available before deploying CoreDNS, etc.
-
 You will also have to have a domain name that has its DNS hosted on Exoscale so DNS records can be created.
 
 You can then create a `terraform.tfvars` file with the following content:

@@ -52,10 +52,20 @@ an nginx is configured to serve a status check page.
 After that a managed elastic IP is deployed that checks the status page served by nginx. This elastic IP becomes the
 URL for Kubernetes that workers and clients use.
 
+For details see [install-etcd.sh](https://github.com/janoszen/terraform-kubernetes-exoscale/blob/master/files/install-etcd.sh)
+and [install-backplane.sh](https://github.com/janoszen/terraform-kubernetes-exoscale/blob/master/files/install-backplane.sh).
+
 ### Workers
 
 Once the masters are deployed the workers can be provisioned. At this time workers are started explicitly and not via 
 an instance pool. They get the kubelet and kube-proxy installed and configured via systemd once they boot up.
+
+For details see [install-kubelet.sh](https://github.com/janoszen/terraform-kubernetes-exoscale/blob/master/files/install-kubelet.sh)
+
+### DNS
+
+Workers and masters have FQDNs configured in Exoscale DNS. This is needed such that the kube-apiserver can connect
+to the kubelet for purposes of fetching logs, etc.
 
 ### Kubernetes components
 

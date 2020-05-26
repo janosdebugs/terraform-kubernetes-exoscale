@@ -100,7 +100,7 @@ Documentation=https://github.com/kubernetes/kubernetes
 [Service]
 ExecStart=/usr/local/bin/kube-controller-manager \\
   --address=0.0.0.0 \\
-  --cluster-cidr=10.244.0.0/16 \\
+  --cluster-cidr=10.200.0.0/16 \\
   --cluster-name=${prefix} \\
   --allocate-node-cidrs=true \\
   --cluster-signing-cert-file=/var/lib/kubernetes/ca.pem \\

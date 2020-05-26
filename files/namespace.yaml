@@ -1,0 +1,9 @@
+---
+# This is a workaround for Kubernetes issue #88253 ( Network Policy NamespaceSelector Should All Match Against Name )
+apiVersion: v1
+kind: Namespace
+metadata:
+  creationTimestamp: null
+  name: kube-system
+  labels:
+    k8s-ns: kube-system

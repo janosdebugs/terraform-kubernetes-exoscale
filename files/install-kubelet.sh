@@ -8,6 +8,7 @@ wget -q --show-progress --https-only --timestamping \
   https://github.com/kubernetes-sigs/cri-tools/releases/download/v${critools_version}/crictl-v${critools_version}-linux-amd64.tar.gz \
   https://github.com/opencontainers/runc/releases/download/v${runc_version}/runc.amd64 \
   https://github.com/containerd/containerd/releases/download/v${containerd_version}/containerd-${containerd_version}.linux-amd64.tar.gz \
+  https://github.com/containernetworking/plugins/releases/download/v${cni_plugins_version}/cni-plugins-linux-amd64-v${cni_plugins_version}.tgz \
   https://storage.googleapis.com/kubernetes-release/release/v${kubernetes_version}/bin/linux/amd64/kubectl \
   https://storage.googleapis.com/kubernetes-release/release/v${kubernetes_version}/bin/linux/amd64/kube-proxy \
   https://storage.googleapis.com/kubernetes-release/release/v${kubernetes_version}/bin/linux/amd64/kubelet
@@ -24,10 +25,24 @@ sudo mkdir -p \
 mkdir containerd
 tar -xvf crictl-v${critools_version}-linux-amd64.tar.gz
 tar -xvf containerd-${containerd_version}.linux-amd64.tar.gz -C containerd
+sudo tar -xvf cni-plugins-linux-amd64-v${cni_plugins_version}.tgz -C /opt/cni/bin/
 sudo mv runc.amd64 runc
 chmod +x crictl kubectl kube-proxy kubelet runc
 sudo mv crictl kubectl kube-proxy kubelet runc /usr/local/bin/
 sudo mv containerd/bin/* /bin/
+
+# region Kernel
+echo "overlay" | sudo tee /etc/modules-load.d/overlay.conf >/dev/null
+sudo modprobe overlay
+echo "br_netfilter" | sudo tee /etc/modules-load.d/br_netfilter.conf >/dev/null
+sudo modprobe br_netfilter
+cat <<EOF | sudo tee /etc/sysctl.d/99-kubernetes-cri.conf >/dev/null
+net.bridge.bridge-nf-call-iptables  = 1
+net.ipv4.ip_forward                 = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+EOF
+sudo sysctl --system
+# endregion
 
 # region Containerd
 cat << EOF | sudo tee /etc/containerd/config.toml >/dev/null
@@ -96,7 +111,6 @@ clusterDomain: "cluster.local"
 clusterDNS:
   - "10.32.0.10"
 resolvConf: "/run/systemd/resolve/resolv.conf"
-podCIDR: "10.244.0.0/16"
 runtimeRequestTimeout: "15m"
 tlsCertFile: "/var/lib/kubelet/${name}.pem"
 tlsPrivateKeyFile: "/var/lib/kubelet/${name}-key.pem"
@@ -124,6 +138,14 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
+
+cat <<EOF | sudo tee /etc/cni/net.d/99-loopback.conf >/dev/null
+{
+    "cniVersion": "0.3.1",
+    "name": "lo",
+    "type": "loopback"
+}
+EOF
 # endregion
 
 # region kube-proxy
@@ -139,7 +161,7 @@ clientConnection:
 mode: "ipvs"
 ipvs:
   strictARP: true
-clusterCIDR: "10.244.0.0/16"
+clusterCIDR: "10.200.0.0/16"
 EOF
 
 cat <<EOF | sudo tee /etc/systemd/system/kube-proxy.service

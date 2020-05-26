@@ -196,6 +196,7 @@ resource "exoscale_compute" "worker" {
         containerd_version = "1.3.4"
         critools_version = "1.18.0"
         runc_version = "1.0.0-rc10"
+        cni_plugins_version = "0.8.6"
         kubelet_kubeconfig = data.template_file.kubelet[count.index].rendered
         kubeproxy_kubeconfig = data.template_file.kubeproxy.rendered
         key = tls_private_key.kubelet[count.index].private_key_pem

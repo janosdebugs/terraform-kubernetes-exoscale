@@ -320,6 +320,7 @@ resource "exoscale_compute" "masters" {
 // endregion
 
 resource "null_resource" "k8s-api" {
+  depends_on = [exoscale_secondary_ipaddress.k8s]
   triggers = {
     ip = exoscale_ipaddress.k8s.ip_address
   }

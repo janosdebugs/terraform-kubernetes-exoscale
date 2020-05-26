@@ -3,8 +3,4 @@ resource "null_resource" "deploy_namespace" {
   provisioner "local-exec" {
     command = "kubectl apply --kubeconfig=${path.module}/config/admin.kubeconfig -f ${path.module}/files/namespace.yaml"
   }
-  provisioner "local-exec" {
-    command = "kubectl delete --kubeconfig=${path.module}/config/admin.kubeconfig -f ${path.module}/files/namespace.yaml"
-    when = destroy
-  }
 }

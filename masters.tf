@@ -186,6 +186,62 @@ resource "exoscale_network" "masters" {
 
 // endregion
 
+// region Kubelet
+resource "tls_private_key" "kubelet-master" {
+  algorithm = "RSA"
+  rsa_bits = 4096
+  count = var.workers
+}
+
+resource "tls_cert_request" "kubelet-master" {
+  key_algorithm = element(tls_private_key.kubelet-master.*.algorithm, count.index)
+  private_key_pem = element(tls_private_key.kubelet-master.*.private_key_pem, count.index)
+  subject {
+    common_name = "system:node:${var.prefix}-master-${count.index}"
+    organization = "system:nodes"
+  }
+  dns_names = [
+    "${var.prefix}-master-${count.index}.${var.service_domain}",
+    "${var.prefix}-master-${count.index}"
+  ]
+  count = var.workers
+}
+
+resource "tls_locally_signed_cert" "kubelet-master" {
+  allowed_uses = [
+    "signing", "key encipherment", "server auth", "client auth"
+  ]
+  ca_cert_pem = tls_self_signed_cert.ca.cert_pem
+  ca_key_algorithm = tls_private_key.ca.algorithm
+  ca_private_key_pem = tls_private_key.ca.private_key_pem
+  cert_request_pem = element(tls_cert_request.kubelet-master.*.cert_request_pem, count.index)
+  validity_period_hours = 8760
+  count = var.workers
+}
+data "template_file" "kubelet-master" {
+  template = file("${path.module}/files/kubelet.kubeconfig")
+  vars = {
+    ca_cert = replace(base64encode(tls_self_signed_cert.ca.cert_pem), "\n", "")
+    cert = replace(base64encode(tls_locally_signed_cert.kubelet-master[count.index].cert_pem), "\n", "")
+    key = replace(base64encode(tls_private_key.kubelet-master[count.index].private_key_pem), "\n", "")
+    prefix = var.prefix
+    url = "https://${exoscale_ipaddress.k8s.ip_address}:${var.k8s_port}"
+    name = "${var.prefix}-master-${count.index}"
+  }
+  count = var.workers
+}
+data "template_file" "kubeproxy-master" {
+  template = file("${path.module}/files/kubeproxy.kubeconfig")
+  vars = {
+    ca_cert = replace(base64encode(tls_self_signed_cert.ca.cert_pem), "\n", "")
+    cert = replace(base64encode(tls_locally_signed_cert.kubeproxy.cert_pem), "\n", "")
+    key = replace(base64encode(tls_private_key.kubeproxy.private_key_pem), "\n", "")
+    url = "https://${exoscale_ipaddress.k8s.ip_address}:${var.k8s_port}"
+    prefix = var.prefix
+  }
+}
+// endregion
+
 // region Instances
 locals {
   kube_controller_manager_config = templatefile("${path.module}/files/kube-controller-manager.kubeconfig", {
@@ -302,6 +358,28 @@ resource "exoscale_compute" "masters" {
         prefix = var.prefix
         k8s_port = var.k8s_port
         healthcheck_port = var.k8s_healthcheck_port
+      })
+    ]
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      templatefile("${path.module}/files/install-kubelet.sh", {
+        ca_cert = tls_self_signed_cert.ca.cert_pem
+        prefix = var.prefix
+        k8s_port = var.k8s_port
+        kubernetes_version = local.kubernetes_version
+        containerd_version = local.containerd_version
+        critools_version = local.critools_version
+        runc_version = local.runc_version
+        cni_plugins_version = local.cni_plugins_version
+        kubelet_kubeconfig = data.template_file.kubelet-master[count.index].rendered
+        kubeproxy_kubeconfig = data.template_file.kubeproxy-master.rendered
+        key = tls_private_key.kubelet-master[count.index].private_key_pem
+        cert = tls_locally_signed_cert.kubelet-master[count.index].cert_pem
+        name = "${var.prefix}-master-${count.index}"
+        domain = var.service_domain
+        noschedule = 1
       })
     ]
   }

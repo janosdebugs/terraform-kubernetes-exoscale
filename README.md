@@ -74,8 +74,8 @@ transformed to Terraform code so they can be properly managed. These components 
 
 - [CoreDNS](https://coredns.io/)
 - [Canal](https://docs.projectcalico.org/getting-started/kubernetes/flannel/flannel)
-- [MetalLB](https://metallb.universe.tf/) (planned)
-- [nginx ingress controller](https://github.com/kubernetes/ingress-nginx) (planned)
+- [MetalLB](https://metallb.universe.tf/)
+- [nginx ingress controller](https://github.com/kubernetes/ingress-nginx)
 - [helm](https://helm.sh/) (planned)
 
 ## Security notes

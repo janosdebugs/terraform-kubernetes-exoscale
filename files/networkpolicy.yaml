@@ -2,11 +2,17 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: deny-all
+  name: default
 spec:
   podSelector: {}
   ingress:
-    - {}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              k8s-ns: ingress-nginx
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
   egress:
     - to:
         - namespaceSelector:
@@ -42,3 +48,15 @@ spec:
   policyTypes:
     - Ingress
     - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-nginx
+  namespace: ingress-nginx
+spec:
+  podSelector: {}
+  ingress:
+    - from:
+      - podSelector:
+          matchLabels: {}

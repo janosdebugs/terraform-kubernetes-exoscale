@@ -82,6 +82,14 @@ variable "terraform_os" {
 }
 
 locals {
+  kubernetes_version = "1.15.3"
+  containerd_version = "1.3.4"
+  critools_version = "1.18.0"
+  runc_version = "1.0.0-rc10"
+  cni_plugins_version = "0.8.6"
+}
+
+locals {
   service_domain_stub = var.service_domain == var.service_domain_zone?"@":"${replace(var.service_domain, ".${var.service_domain_zone}", "")}"
   service_domain_suffix = var.service_domain == var.service_domain_zone?"":".${replace(var.service_domain, ".${var.service_domain_zone}", "")}"
 }

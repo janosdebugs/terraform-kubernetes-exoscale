@@ -32,8 +32,6 @@ sudo mv crictl kubectl kube-proxy kubelet runc /usr/local/bin/
 sudo mv containerd/bin/* /bin/
 
 # region Kernel
-echo "overlay" | sudo tee /etc/modules-load.d/overlay.conf >/dev/null
-sudo modprobe overlay
 echo "br_netfilter" | sudo tee /etc/modules-load.d/br_netfilter.conf >/dev/null
 sudo modprobe br_netfilter
 cat <<EOF | sudo tee /etc/sysctl.d/99-kubernetes-cri.conf >/dev/null
@@ -116,7 +114,33 @@ tlsCertFile: "/var/lib/kubelet/${name}.pem"
 tlsPrivateKeyFile: "/var/lib/kubelet/${name}-key.pem"
 EOF
 
-cat <<EOF | sudo tee /etc/systemd/system/kubelet.service
+if [ "${noschedule}" = "1" ]; then
+  cat <<EOF | sudo tee /etc/systemd/system/kubelet.service
+[Unit]
+Description=Kubernetes Kubelet
+Documentation=https://github.com/kubernetes/kubernetes
+After=containerd.service
+Requires=containerd.service
+
+[Service]
+ExecStart=/usr/local/bin/kubelet \\
+  --config=/var/lib/kubelet/kubelet-config.yaml \\
+  --container-runtime=remote \\
+  --container-runtime-endpoint=unix:///var/run/containerd/containerd.sock \\
+  --image-pull-progress-deadline=2m \\
+  --kubeconfig=/var/lib/kubelet/kubeconfig \\
+  --register-node=true \\
+  --node-labels="kubernetes.io/role=master,node-role.kubernetes.io/master=true" \\
+  --register-with-taints="node-role.kubernetes.io/master=true:NoSchedule" \\
+  --v=2
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+else
+  cat <<EOF | sudo tee /etc/systemd/system/kubelet.service
 [Unit]
 Description=Kubernetes Kubelet
 Documentation=https://github.com/kubernetes/kubernetes
@@ -138,6 +162,7 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
+fi
 
 cat <<EOF | sudo tee /etc/cni/net.d/99-loopback.conf >/dev/null
 {

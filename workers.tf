@@ -1,30 +1,3 @@
-// region Certificates
-// region kube-proxy certificate
-resource "tls_private_key" "kubeproxy" {
-  algorithm = "RSA"
-  rsa_bits = 4096
-}
-
-resource "tls_cert_request" "kubeproxy" {
-  key_algorithm = tls_private_key.kubeproxy.algorithm
-  private_key_pem = tls_private_key.kubeproxy.private_key_pem
-  subject {
-    common_name = "system:kube-proxy"
-    organization = "system:node-proxier"
-  }
-}
-
-resource "tls_locally_signed_cert" "kubeproxy" {
-  allowed_uses = [
-    "signing", "key encipherment", "server auth", "client auth"
-  ]
-  ca_cert_pem = tls_self_signed_cert.ca.cert_pem
-  ca_key_algorithm = tls_private_key.ca.algorithm
-  ca_private_key_pem = tls_private_key.ca.private_key_pem
-  cert_request_pem = tls_cert_request.kubeproxy.cert_request_pem
-  validity_period_hours = 8760
-}
-// endregion
 // region Kubelet certificate
 resource "tls_private_key" "kubelet" {
   algorithm = "RSA"
@@ -57,8 +30,6 @@ resource "tls_locally_signed_cert" "kubelet" {
   validity_period_hours = 8760
   count = var.workers
 }
-
-// endregion
 // endregion
 
 // region EIP
@@ -192,17 +163,18 @@ resource "exoscale_compute" "worker" {
         ca_cert = tls_self_signed_cert.ca.cert_pem
         prefix = var.prefix
         k8s_port = var.k8s_port
-        kubernetes_version = "1.15.3"
-        containerd_version = "1.3.4"
-        critools_version = "1.18.0"
-        runc_version = "1.0.0-rc10"
-        cni_plugins_version = "0.8.6"
+        kubernetes_version = local.kubernetes_version
+        containerd_version = local.containerd_version
+        critools_version = local.critools_version
+        runc_version = local.runc_version
+        cni_plugins_version = local.cni_plugins_version
         kubelet_kubeconfig = data.template_file.kubelet[count.index].rendered
         kubeproxy_kubeconfig = data.template_file.kubeproxy.rendered
         key = tls_private_key.kubelet[count.index].private_key_pem
         cert = tls_locally_signed_cert.kubelet[count.index].cert_pem
         name = "${var.prefix}-worker-${count.index}"
         domain = var.service_domain
+        noschedule = 0
       })
     ]
   }
